@@ -1,5 +1,12 @@
-/*
- * Copyright (C) 2022 Fern Lane, CMCEC Project
+/**
+ * @file main.cpp
+ * @author Fern Lane
+ * @brief Main file that contains setup() and loop()
+ *
+ * @copyright Copyright (c) 2022-2025 Fern Lane
+ *
+ * This file is part of the ardu-r2r-midi-cv (aka CMCEC) distribution.
+ * See <https://github.com/F33RNI/ardu-r2r-midi-cv> for more info.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +23,6 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
  */
 
 // Arduino library
