@@ -182,7 +182,7 @@ void Calibration::loop(void) {
         uint64_t _time_last;
         ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { _time_last = time_last; }
         uint64_t time = micros();
-        if (time - _time_last > 2000000UL) {
+        if (time - _time_last > 2000000ULL) {
             frequency = 0.f;
             ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { frequency_raw = 0.f; }
             if ((stage == CalibStage::VCO_1 || stage == CalibStage::VCO_2) && stage_vco == CalibVcoStage::LINEARITY) {
