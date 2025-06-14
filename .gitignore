@@ -1,5 +1,6 @@
-.pio
-.vscode
-lost
-lib
-test
+.pio/
+.vscode/
+lost/
+test/
+build/
+log.txt
