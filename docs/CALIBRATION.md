@@ -1,26 +1,33 @@
-# ardu-r2r-midi-cv (aka CMCEC) calibration and tuner manual
+# 🎛️ ardu-r2r-midi-cv (aka CMCEC) Calibration & Tuner guide
 
-## Entering calibration mode
+## 🔧 Entering calibration mode
 
-To enter calibration mode, press and hold calibration button (see `PIN_CALIB_BTN` in `include/pins.h` file,
-default pin: `12`) and power on / reset module. It should start blinking 1st LED with blue after loading.
-If failed, please try again.
+To enter calibration mode:
+
+1. **Press and hold** the calibration button (defined as `PIN_CALIB_BTN` in `include/pins.h`, default pin: `12`)
+2. While holding the button, **power on** or **reset** the module
+3. The **1st LED** should start blinking **blue** after boot
+
+> If it doesn't work the first time, don't worry and pls try again
 
 ## Calibration modes
 
-Currently there are 7 calibration modes:
+There are **7 calibration modes**, each represented by a unique LED blink pattern:
 
-1. 🔵⚫ **1st DAC gain calibration** - semi-manual 1st channel DAC gain calibration
-2. ⚫🔵 **2nd DAC gain calibration** - semi-manual 2nd channel DAC gain calibration
-3. 🟢🟢 **Tuner** - simple tuner (uses linearity calibration)
-4. 🟡⚫ **1st VCO linearity calibration** - automatically calibrates 1st channel linearity
-5. ⚫🟡 **2nd VCO linearity calibration** - automatically calibrates 2nd channel linearity
-6. 🔴⚫ **1st VCO linearity reset** - resets stored linearity calibration of 1st channel
-7. ⚫🔴 **2nd VCO linearity reset** - resets stored linearity calibration of 2nd channel
+| # | LED Pattern  | Mode Description                       |
+| - | ------------ | -------------------------------------- |
+| 1 |     🔵⚫     | 1st DAC Gain Calibration (semi-manual) |
+| 2 |     ⚫🔵     | 2nd DAC Gain Calibration (semi-manual) |
+| 3 |     🟢🟢     | Tuner Mode                             |
+| 4 |     🟡⚫     | 1st VCO Linearity Calibration          |
+| 5 |     ⚫🟡     | 2nd VCO Linearity Calibration          |
+| 6 |     🔴⚫     | Reset 1st VCO Linearity                |
+| 7 |     ⚫🔴     | Reset 2nd VCO Linearity                |
 
-You can cycle trough them with short presses on button. Each mode will blink with 500ms period with listed colors.
+- **Short press** - cycle through modes
+- **Long press** (hold for >1 second) - enter the selected mode
 
-To enter each calibration mode, use long button press (> 1s)
+> Each mode blinks with a 500ms interval to help you recognize it
 
 ## 🟦 DAC gain calibration
 
@@ -57,16 +64,19 @@ So, the procedure is as follows:
 
 ## 🟩 Tuner
 
-It's possible to use this module as tuner for VCO. Octave and note selects with DIP switch and module will show pitch
-deviation using both LEDs.
+This module can also act as a **simple tuner** for your VCO.
 
-1. Enter **Tuner mode** by long pressing on a button
-2. Connect VCO's output (preferably, square wave) into CLOCK IO / VCO input (see `PIN_CALIB_VCO` in `include/pins.h`
-  file).
+### How it works
+
+- You choose the **target note** using DIP switches
+- The module shows how close the VCO frequency is to the target using the **LEDs**
+
+1. Enter **Tuner Mode** with a long button press
+2. Connect your VCO's **square wave output** to the **CLOCK IO / VCO input** (see `PIN_CALIB_VCO` in `include/pins.h`)
   *In order to protect Arduino from high VCO output, make sure, resistor and diodes to power rails are connected*
-3. Select target octave and note using DIP switch (see table below)
+3. Use the DIP switches to set **octave and note**
 4. Adjust VCO's frequency to "center" frequency. (Eg. 1st LED (🟠⚫) will be brighter and more red-ish the lower the
-  actual frequency is). Below / above 250 cents, the LED will be fully red
+  actual frequency is). Below / above 250 cents, the LED will be fully red. When tuned, both LEDs will be slightly green
 
 | Octave | Top 4 DIP switches | Note | Bottom 4 DIP switches |
 |--------|--------------------|------|-----------------------|
@@ -87,28 +97,31 @@ deviation using both LEDs.
 >
 > Ex.: **A4** - ⬇️🔼⬇️⬇️ 🔼⬇️⬇️🔼 (0100 / 1001) - 4750mV
 >
-> **NOTE:** Maximum possible range is C0 (12) - G9 (127) (not considering DAC output and VCO's limitations).
-> Notes outside this range will be clamped to 12-127 range
+> 🎵 Supported range: C0 (note 12) to G9 (note 127). Values outside this range are clamped
 
-In order to exit tuner mode, just long press button again.
+To exit tuner mode, just long-press the button again.
 
-## 🟨 VCO linearity calibration
+## 🟨 VCO Linearity Calibration (Modes 4 & 5)
 
 One of the main features of this module is automatic linearity calibration based on VCO's output (closed loop).
 This is done by sweeping across an entire output range and measuring VCO's frequency.
 This produces calibration matrix that is stored in the EEPROM and will be loaded at the next boot.
-This matrix is used in normal mode as well as in **Tuner mode**.
+This matrix is used in normal mode as well as in the **Tuner mode**.
 
 Internally, **VCO linearity calibration** consist of 3 modes:
 
-1. Tuner - helps you to set middle calibration point. It will wait for you to tune VCO, then wait 5 more seconds
-  (see `CALIB_VCO_START_DELAY_INIT` in `include/calibration.h` file) before switching to the 2nd stage
-2. Lowest note detection - gradually decreases output to 10% of minimum and determines lowest note
-3. Linearity calibration - gradually sweeps from lowest point to 90% of maximum of output and records all
+1. Tuner - Helps you to set middle calibration point. It will wait for you to tune VCOю After tuning,
+  it waits 5 seconds before moving on (see `CALIB_VCO_START_DELAY_INIT`)
+2. Drop to lowest voltage - Decreases output to `CALIB_VCO_MV_MIN` and waits 2 seconds for VCO's frequency to stabilize
+3. Linearity calibration - Gradually sweeps from lowest point to 95% of maximum of output voltage and records all
   notes on the way
 
-## 🟥 VCO linearity reset
+### 🟥 Reset VCO Linearity Calibration (Modes 6 & 7)
 
-If you need to remove saved linearity calibration in order to get direct note -> CV conversion, it's possible to reset calibration of any channel. After this, MIDI note number will be converted into target voltage directly and just multiplied on gain (with offset calibration) and compensated for supply voltage before sending it to the DAC.
+If you need to remove saved linearity calibration in order to get direct note -> CV conversion, it's possible to reset calibration of any channel. This disables calibration-based corrections, and the module will use **raw note-to-voltage** conversion (with gain/offset compensation).
 
-For that, just long press the button while LED is blinking on desired channel. This will reset saved calibration matrix and switch to the next mode (or next channel).
+To reset:
+
+1. Select the appropriate channel to reset (🔴⚫ or ⚫🔴)
+2. Long-press the button
+3. The calibration matrix is erased, and the module moves to the next calibration mode (7 or 1)
