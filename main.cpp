@@ -93,7 +93,17 @@ void loop() {
         if (!arp_2_enabled)
             arp_note_2 = 255U;
 
-        // Handle panic event and set gates OFF
+        // Button long press -> panic event
+        if (calibration.btn_event_long) {
+            midi.panic(2U);
+            gate_trig.set_1(false);
+            gate_trig.set_2(false);
+            midi.panic_1_event = false;
+            midi.panic_2_event = false;
+            calibration.btn_event_long = false;
+        }
+
+        // Handle MIDI panic event and set gates OFF
         if (midi.panic_1_event) {
             midi.panic(0U);
             gate_trig.set_1(false);
