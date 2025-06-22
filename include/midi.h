@@ -43,9 +43,6 @@
 #define MIDI_SERIAL_AVAILABLE Serial.available()
 #define MIDI_SERIAL_READ      Serial.read()
 
-// For middle point calculation in polyphonic mode (0-1, closer to 1, slower middle point will be moving)
-#define MIDPOINT_FILTER_K .65f
-
 // Ignore notes that are lower
 #define NOTE_MIN 12U
 
@@ -59,14 +56,12 @@ class MIDI {
     void loop(void);
     void set_note(uint8_t channel, uint8_t note, boolean state);
     boolean is_note_enabled(uint8_t channel, uint8_t note);
-    uint8_t get_next_note(uint8_t channel, uint8_t note_last, boolean up);
+    uint8_t get_next_note(uint8_t channel, uint8_t note_last, boolean up, boolean wrap = true);
     boolean get_channel_gate(uint8_t channel);
-    boolean get_gate_from_midpoint(boolean to_right);
     boolean omni, note_1_event_on, note_2_event_on, note_1_event_off, note_2_event_off, pitch_bend_event;
     boolean panic_1_event, panic_2_event;
-    uint8_t note_1, note_2, note_last;
+    uint8_t note_1, note_2, note_last, notes_pressed_n_1, notes_pressed_n_2;
     int16_t pitch_bend;
-    float note_midpoint;
 
   private:
     midiXparser voice_parser, clock_parser;

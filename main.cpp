@@ -39,11 +39,16 @@
 #define NOTE_START_1_CENTS 6000
 #define NOTE_START_2_CENTS 6000
 
+// For middle point calculation in polyphonic mode (0-1, closer to 1, slower middle point will be moving)
+#define MIDPOINT_FILTER_K .65f
+
 int16_t target_cents_1, target_cents_2;
-uint8_t arp_note_1, arp_note_2;
+uint8_t arp_note_1, arp_note_2, omni_note_1, omni_note_2;
+float omni_note_midpoint;
 
 // Methods declaration (see bottom of this file)
 void direct_channel_mode(uint8_t channel), split_channel_mode(void), arp_mode(uint8_t channel, boolean up);
+void update_omni_midpoint(void);
 void write_to_channel(boolean channel_1, boolean channel_2);
 
 void setup() {
@@ -178,33 +183,100 @@ void split_channel_mode(void) {
     if (!midi.note_1_event_on && !midi.note_1_event_off)
         return;
 
-    boolean channel = static_cast<float>(midi.note_1) > midi.note_midpoint;
-    (channel ? target_cents_2 : target_cents_1) = static_cast<int16_t>(midi.note_1) * 100;
+    // Handle note OFF event
+    if (midi.note_1_event_off) {
+        // All notes are off
+        if (midi.notes_pressed_n_1 == 0U) {
+            gate_trig.set_1(false);
+            gate_trig.set_2(false);
+        }
 
-    // Start gate / retrigger
-    if (midi.note_1_event_on) {
+        // 1 Note left
+        else if (midi.notes_pressed_n_1 == 1U) {
+            // 1st note OFF
+            if (midi.note_1 == omni_note_1) {
+                if (!gate_trig.merged)
+                    gate_trig.set_1(false);
+            }
+
+            // 2nd note OFF
+            else if (midi.note_1 == omni_note_2) {
+                if (!gate_trig.merged)
+                    gate_trig.set_2(false);
+            }
+        }
+
+        // Still multiple notes are ON -> write to DAC without re-triggering
+        else {
+            // 1st note OFF
+            if (midi.note_1 == omni_note_1) {
+                omni_note_1 = midi.get_next_note(0U, 0U, true, false);
+                target_cents_1 = static_cast<int16_t>(omni_note_1) * 100;
+                write_to_channel(true, false);
+            }
+
+            // 2nd note OFF
+            else if (midi.note_1 == omni_note_2) {
+                omni_note_2 = midi.get_next_note(0U, 127U, false, false);
+                target_cents_2 = static_cast<int16_t>(omni_note_2) * 100;
+                write_to_channel(false, true);
+            }
+
+            update_omni_midpoint();
+        }
+
+        midi.note_1_event_off = false;
+        midi.note_2_event_off = false;
+        return;
+    }
+
+    // Handle note ON event, more then 1 note pressed
+    if (midi.notes_pressed_n_1 > 1U) {
+        // Get left-most and right-most notes
+        uint8_t note_1 = midi.get_next_note(0U, 0U, true, false);
+        uint8_t note_2 = midi.get_next_note(0U, 127U, false, false);
+
+        // Left note pressed
+        if (midi.note_1 == note_1) {
+            omni_note_1 = note_1;
+            target_cents_1 = static_cast<int16_t>(note_1) * 100;
+            write_to_channel(true, false);
+            gate_trig.set_1(true);
+        }
+
+        // Right note pressed
+        else if (midi.note_1 == note_2) {
+            omni_note_2 = note_2;
+            target_cents_2 = static_cast<int16_t>(note_2) * 100;
+            write_to_channel(false, true);
+            gate_trig.set_2(true);
+        }
+    }
+
+    // Handle note ON event, only 1 note pressed
+    else {
+        boolean channel = false;
+        if (omni_note_midpoint != 0.f)
+            channel = static_cast<float>(midi.note_1) > omni_note_midpoint;
+
         if (channel) {
+            omni_note_2 = midi.note_1;
+            target_cents_2 = static_cast<int16_t>(omni_note_2) * 100;
             write_to_channel(false, true);
             gate_trig.set_2(true);
         } else {
+            omni_note_1 = midi.note_1;
+            target_cents_1 = static_cast<int16_t>(omni_note_1) * 100;
             write_to_channel(true, false);
             gate_trig.set_1(true);
         }
     }
 
-    // Check gate on both sides and turn it off if no more notes
-    else if (midi.note_1_event_off && !midi.get_gate_from_midpoint(channel)) {
-        if (channel)
-            gate_trig.set_2(false);
-        else
-            gate_trig.set_1(false);
-    }
+    update_omni_midpoint();
 
     // Clear events (because we handled them)
     midi.note_1_event_on = false;
-    midi.note_1_event_off = false;
     midi.note_2_event_on = false;
-    midi.note_2_event_off = false;
     midi.pitch_bend_event = false;
 }
 
@@ -252,6 +324,24 @@ void arp_mode(uint8_t channel, boolean up) {
         write_to_channel(true, false);
         gate_trig.set_1(true);
     }
+}
+
+/**
+ * @brief Calculates `omni_note_midpoint`
+ */
+void update_omni_midpoint(void) {
+    float midpoint;
+    if (omni_note_1 && omni_note_2)
+        midpoint = (static_cast<float>(omni_note_1) + static_cast<float>(omni_note_2)) / 2.f;
+    else if (omni_note_1)
+        midpoint = static_cast<float>(omni_note_1);
+    else
+        midpoint = static_cast<float>(omni_note_2);
+
+    if (omni_note_midpoint == 0.f)
+        omni_note_midpoint = midpoint;
+    else
+        omni_note_midpoint = omni_note_midpoint * MIDPOINT_FILTER_K + midpoint * (1.f - MIDPOINT_FILTER_K);
 }
 
 /**

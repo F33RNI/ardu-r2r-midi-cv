@@ -86,6 +86,19 @@ void MIDI::loop(void) {
                 (channel ? note_2_event : note_1_event) = true;
             }
 
+            // Count number of pressed notes
+            if (channel) {
+                if (on && notes_pressed_n_2 < UINT8_MAX)
+                    notes_pressed_n_2++;
+                else if (!on && notes_pressed_n_2 > 0U)
+                    notes_pressed_n_2--;
+            } else {
+                if (on && notes_pressed_n_1 < UINT8_MAX)
+                    notes_pressed_n_1++;
+                else if (!on && notes_pressed_n_1 > 0U)
+                    notes_pressed_n_1--;
+            }
+
             // Save note number
             // if (on) {
             if (omni) {
@@ -93,14 +106,6 @@ void MIDI::loop(void) {
                 note_2 = note;
             } else {
                 (channel ? note_2 : note_1) = note;
-            }
-
-            if (note_midpoint == 0.f)
-                note_midpoint = (static_cast<float>(note) + static_cast<float>(note_last)) / 2.f;
-            else {
-                note_midpoint = MIDPOINT_FILTER_K * note_midpoint;
-                note_midpoint +=
-                    ((static_cast<float>(note) + static_cast<float>(note_last)) / 2.f) * (1.f - MIDPOINT_FILTER_K);
             }
 
             note_last = note;
@@ -126,6 +131,8 @@ void MIDI::loop(void) {
                 notes_enabled_1.lsb = 0ULL;
                 notes_enabled_2.msb = 0ULL;
                 notes_enabled_2.lsb = 0ULL;
+                notes_pressed_n_1 = 0U;
+                notes_pressed_n_2 = 0U;
                 note_1_event_off = true;
                 note_2_event_off = true;
                 panic_1_event = true;
@@ -134,6 +141,7 @@ void MIDI::loop(void) {
                 struct notesEnabled *notes_enabled = (channel ? &notes_enabled_2 : &notes_enabled_1);
                 notes_enabled->msb = 0ULL;
                 notes_enabled->lsb = 0ULL;
+                (channel ? notes_pressed_n_2 : notes_pressed_n_1) = 0U;
                 (channel ? note_2_event_off : note_1_event_off) = true;
                 (channel ? panic_2_event : panic_1_event) = true;
             }
@@ -176,14 +184,15 @@ boolean MIDI::is_note_enabled(uint8_t channel, uint8_t note) {
 
 /**
  * @brief Cycles though all notes in `notes_enabled_1` / `notes_enabled_2` starting from note_last and
- * tries to find next note (for arpeggiator)
+ * tries to find next note (for arpeggiator and "omni" mode)
  *
  * @param channel 0 to use `notes_enabled_1`, 1 to use `notes_enabled_2`
  * @param note_last starting point (will NOT be included)
  * @param up direction
+ * @param wrap don't stop on 0 or 127 (Defaults to true)
  * @return uint8_t 0-127 (next note or same one) or 255 if ALL notes are off
  */
-uint8_t MIDI::get_next_note(uint8_t channel, uint8_t note_last, boolean up) {
+uint8_t MIDI::get_next_note(uint8_t channel, uint8_t note_last, boolean up, boolean wrap) {
     struct notesEnabled *notes_enabled = (channel ? &notes_enabled_2 : &notes_enabled_1);
     uint8_t note = note_last;
     for (;;) {
@@ -197,6 +206,10 @@ uint8_t MIDI::get_next_note(uint8_t channel, uint8_t note_last, boolean up) {
         // Next note found
         if ((note > 63U ? notes_enabled->msb : notes_enabled->lsb) & (1ULL << (note % 64U)))
             return note;
+
+        // Stop without wrap flag
+        if (!wrap && (note == 0U || note == 127U))
+            return 255U;
     }
 }
 
@@ -209,26 +222,4 @@ uint8_t MIDI::get_next_note(uint8_t channel, uint8_t note_last, boolean up) {
 boolean MIDI::get_channel_gate(uint8_t channel) {
     struct notesEnabled *notes_enabled = (channel ? &notes_enabled_2 : &notes_enabled_1);
     return ((notes_enabled->msb || notes_enabled->lsb) ? true : false);
-}
-
-/**
- * @brief Check if at least 1 note is ON on the right or on the left of note_midpoint (INCLUDING midpoint itself)
- *
- * @param to_right true to check all notes from midpoint to the right (0->127)
- * @return boolean true if at least 1 note is ON
- */
-boolean MIDI::get_gate_from_midpoint(boolean to_right) {
-    uint8_t start;
-    if (fmodf(note_midpoint, 1.f) == 0.f)
-        start = static_cast<uint8_t>(note_midpoint);
-    else {
-        start = static_cast<uint8_t>(note_midpoint);
-        if (to_right)
-            start++;
-    }
-
-    for (uint8_t note = start; (to_right ? note < 127U : note > 0U); (to_right ? ++note : --note))
-        if ((note > 63U ? notes_enabled_1.msb : notes_enabled_1.lsb) & (1ULL << (note % 64U)))
-            return true;
-    return false;
 }
