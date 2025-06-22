@@ -152,16 +152,16 @@ float Calibration::note_to_mv_cal(uint8_t channel, uint16_t cents) {
  * @brief Main calibration loop. Must be called inside `loop()` after reading DIP switches and before DAC write
  */
 void Calibration::loop(void) {
-    // Nothing to do here
+    // Read button
+    btn();
+
+    // Nothing more to do
     if (!active)
         return;
     if (stage == CalibStage::ERROR) {
         dac.set(0.f, 0.f);
         return;
     }
-
-    // Read button
-    btn();
 
     // Gain calibration -> read offset from DIP switch
     if (stage == CalibStage::GAIN_1)
@@ -429,6 +429,10 @@ void Calibration::btn(void) {
  * @brief Handles short button press (cycles trough calibration stages)
  */
 void Calibration::btn_short_press(void) {
+    btn_event_short = true;
+    if (!active)
+        return;
+
     switch (stage) {
     // Next stage
     // 1st DAC gain calibration -> 2nd DAC gain calibration
@@ -474,6 +478,10 @@ void Calibration::btn_short_press(void) {
  * @brief Handles long button press (starts calibration)
  */
 void Calibration::btn_long_press(void) {
+    btn_event_long = true;
+    if (!active)
+        return;
+
     switch (stage) {
     // Start DAC gain calibration
     case CalibStage::PREP_GAIN_1:

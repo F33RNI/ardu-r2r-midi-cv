@@ -70,6 +70,7 @@ void setup() {
 void loop() {
     dip_switch.read();
 
+    // Calibration button handling and calibration loop
     calibration.loop();
 
     if (!calibration.active) {
@@ -92,12 +93,14 @@ void loop() {
         if (!arp_2_enabled)
             arp_note_2 = 255U;
 
-        // Set gates OFF on panic event
+        // Handle panic event and set gates OFF
         if (midi.panic_1_event) {
+            midi.panic(0U);
             gate_trig.set_1(false);
             midi.panic_1_event = false;
         }
         if (midi.panic_2_event) {
+            midi.panic(1U);
             gate_trig.set_2(false);
             midi.panic_2_event = false;
         }

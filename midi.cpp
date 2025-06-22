@@ -127,24 +127,10 @@ void MIDI::loop(void) {
                  (voice_parser.getMidiMsg()[1] == 120U || voice_parser.getMidiMsg()[1] == 123U) &&
                  voice_parser.getMidiMsg()[2] == 0U) {
             if (omni) {
-                notes_enabled_1.msb = 0ULL;
-                notes_enabled_1.lsb = 0ULL;
-                notes_enabled_2.msb = 0ULL;
-                notes_enabled_2.lsb = 0ULL;
-                notes_pressed_n_1 = 0U;
-                notes_pressed_n_2 = 0U;
-                note_1_event_off = true;
-                note_2_event_off = true;
                 panic_1_event = true;
                 panic_2_event = true;
-            } else {
-                struct notesEnabled *notes_enabled = (channel ? &notes_enabled_2 : &notes_enabled_1);
-                notes_enabled->msb = 0ULL;
-                notes_enabled->lsb = 0ULL;
-                (channel ? notes_pressed_n_2 : notes_pressed_n_1) = 0U;
-                (channel ? note_2_event_off : note_1_event_off) = true;
+            } else
                 (channel ? panic_2_event : panic_1_event) = true;
-            }
         }
     }
 
@@ -167,6 +153,19 @@ void MIDI::set_note(uint8_t channel, uint8_t note, boolean state) {
         (note > 63U ? notes_enabled->msb : notes_enabled->lsb) |= note_mask;
     else
         (note > 63U ? notes_enabled->msb : notes_enabled->lsb) &= ~note_mask;
+}
+
+/**
+ * @brief Handles MIDI panic event
+ *
+ * @param channel 0 - 1st channel, 1 - 2nd channel
+ */
+void MIDI::panic(uint8_t channel) {
+    struct notesEnabled *notes_enabled = (channel ? &notes_enabled_2 : &notes_enabled_1);
+    notes_enabled->msb = 0ULL;
+    notes_enabled->lsb = 0ULL;
+    (channel ? notes_pressed_n_2 : notes_pressed_n_1) = 0U;
+    (channel ? note_2_event_off : note_1_event_off) = true;
 }
 
 /**

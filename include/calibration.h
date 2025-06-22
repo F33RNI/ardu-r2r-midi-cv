@@ -122,6 +122,7 @@ class Calibration {
     float gain_1_offset, gain_2_offset;
     int16_t tuner_deviation_cents;
     float vco_calib_progress;
+    boolean btn_event_short, btn_event_long;
 
   private:
     enum CalibStage stage_last;

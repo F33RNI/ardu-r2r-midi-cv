@@ -55,6 +55,7 @@ class MIDI {
     void init(void);
     void loop(void);
     void set_note(uint8_t channel, uint8_t note, boolean state);
+    void panic(uint8_t channel);
     boolean is_note_enabled(uint8_t channel, uint8_t note);
     uint8_t get_next_note(uint8_t channel, uint8_t note_last, boolean up, boolean wrap = true);
     boolean get_channel_gate(uint8_t channel);
